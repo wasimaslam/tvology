@@ -11,6 +11,13 @@ datasource db {
 }
 
 model TVShow {
-  id Int @id @default(autoincrement())
-  title String @db.VarChar(255)
+  id             Int     @id @default(autoincrement())
+  title          String  @db.VarChar(255)
+  externalID     Int     @unique
+  externalIDs    Json
+  averageRuntime Int?
+  image          String?
+  imageLowRes    String?
+  averageRating  Float?
+  schedule       Json?
 }

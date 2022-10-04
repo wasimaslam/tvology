@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from 'next/router';
 
+
 export default function Search({ tvShowsQuery, searchStringQuery }) {
 
     const [searchString, setSearchString] = useState(searchStringQuery);
@@ -38,7 +39,7 @@ export default function Search({ tvShowsQuery, searchStringQuery }) {
                         {tvShows.map(show =>
                             <li key={show.id}>
                                 <Link href={{ pathname: "show/[id]", query: { id: show.id } }}>
-                                    <a className='text-blue-800'>{show.name}</a>
+                                    <a className='text-blue-800'>{show.title}</a>
                                 </Link>
                             </li>
                         )}
@@ -51,7 +52,8 @@ export default function Search({ tvShowsQuery, searchStringQuery }) {
 }
 
 async function fetchTVShows(searchString) {
-    const { results } = await fetch(`https://api.themoviedb.org/3/search/tv?query=${searchString}&api_key=753c37ef2f0908507dca0d4f9299faa0`).then(res => res.json());
+    // const { results } = await fetch(`https://api.themoviedb.org/3/search/tv?query=${searchString}&api_key=753c37ef2f0908507dca0d4f9299faa0`).then(res => res.json());
+    const results = (await fetch(`http://localhost:3000/api/shows?q=${searchString}`).then(r => r.json())).data;
     return results;
 }
 
