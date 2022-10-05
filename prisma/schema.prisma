@@ -11,13 +11,26 @@ datasource db {
 }
 
 model TVShow {
-  id             Int     @id @default(autoincrement())
-  title          String  @db.VarChar(255)
-  externalID     Int     @unique
+  id             Int      @id @default(autoincrement())
+  title          String   @db.VarChar(255)
+  externalID     Int      @unique
   externalIDs    Json
   averageRuntime Int?
   image          String?
   imageLowRes    String?
   averageRating  Float?
   schedule       Json?
+  seasons        Season[]
+}
+
+model Season {
+  id          Int       @id @default(autoincrement())
+  name        String    @db.VarChar(255)
+  summary     String?   @db.Text
+  premierDate DateTime?
+  endDate     DateTime?
+  image       String?   @db.VarChar(255)
+  imageLowRes String?   @db.VarChar(255)
+  showID      Int
+  show        TVShow    @relation(fields: [showID], references: [id])
 }
