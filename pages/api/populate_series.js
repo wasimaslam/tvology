@@ -1,23 +1,28 @@
 import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient;
-import logger from "js-logger";
+import throttledQueue from 'throttled-queue';
+const throttle = throttledQueue(1, 50);
 
 async function syncShowData(numberOfpagesToFetch = 10) {
     let lastTvShowID = await getLastShowID();
     let pageToFetch = await getPageToFetch(lastTvShowID);
 
-    for (let index = 0; index < numberOfpagesToFetch; index++) {
+    for (let index = 0; true; index++) {
+
+    }
+    for (let page = 0; page < 50; index++) {
         fetchPage(pageToFetch).then(async tvShows => {
             if (index === 0) {
                 tvShows = tvShows.filter(s => s.id > lastTvShowID);
             }
             await saveToDB(tvShows);
+        }).catch((e) => {
+            console.log(e.message);
         });
         pageToFetch++;
-        await delay('100');
     }
 
-    logger.INFO(`Queued all pages for fetching and storage`);
+    console.log(`Queued all pages for fetching and storage`);
 }
 
 async function getLastShowID() {
@@ -43,9 +48,19 @@ async function getPageToFetch(lastShowID) {
 }
 
 async function fetchPage(page) {
-    let tvShows = await fetch(`https://api.tvmaze.com/shows?page=${page}`).then((res) => res.ok ? res.json() : new Error("Failed to fetch"));
-    logger.info(`Page ${page} fetched.`);
-    return tvShows;
+    return throttle(() => {
+        return fetch(`https://api.tvmaze.com/shows?page=${page}`)
+            .then((res) => {
+                if (res.ok) {
+                    console.log(`Page ${page} fetched.`);
+                    return res.json();
+                }
+                else if (res.status == 404) {
+                    throw new Error(`Reached end of show index. Last show ${page}`);
+                }
+                throw new Error(`Network error ${res.status} for page ${page}`);
+            });
+    });
 }
 
 function convertShowsToPrismaData(tvShows) {
@@ -69,13 +84,8 @@ async function saveToDB(tvShows) {
     await prisma.tVShow.createMany({ data: tvShows, });
 }
 
-function delay(timeInMs) {
-    return new Promise(resolve => setTimeout(resolve, timeInMs))
-}
-
-
 export default async function handler(req, res) {
-    await syncShowData(100);
+    syncShowData(300);
 
     res.status(200).json({ message: "Done updating data" });
 }

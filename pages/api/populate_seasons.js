@@ -1,9 +1,21 @@
 import throttledQueue from 'throttled-queue';
-const throttle = throttledQueue(1, 250);
+const throttle = throttledQueue(1, 50);
 import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient;
 
-async function getTVShowsPaginated(pageSize, pageNumber) {
+async function startFetchingFromID() {
+    return (await prisma.tVShow.findMany({
+        where: {
+            seasons: { none: {} },
+        },
+        orderBy: {
+            id: 'asc'
+        },
+        take: 1,
+    }))[0].id;
+}
+
+async function getTVShowsPaginated(pageSize, pageNumber, startingID = 1) {
     const cursorID = (pageSize * pageNumber) + 1;
     if (pageSize == 0) {
         return [];
@@ -21,7 +33,7 @@ async function getTVShowsPaginated(pageSize, pageNumber) {
 }
 
 async function fetchAndStoreSeasonsForShow(show) {
-    throttle(() => {
+    return throttle(() => {
         return fetch(`https://api.tvmaze.com/shows/${show.externalID}/seasons`)
             .then(res => {
                 if (res.ok) {
@@ -41,8 +53,6 @@ async function fetchAndStoreSeasonsForShow(show) {
         .catch((e) => {
             console.log(e.message);
         });
-
-    return Promise.resolve();
 }
 
 function convertSeasonsToPrismaData(show, seasons) {
@@ -72,17 +82,14 @@ async function syncSeasonData() {
     const totalTVShows = await getNumberOfStoredTVShows();
     const lastPage = Math.ceil(totalTVShows / 250);
     for (let pageNumber = 0; pageNumber < lastPage; pageNumber++) {
-        getTVShowsPaginated(pageSize, pageNumber).then(async tvShows => {
-            for (let index = 0; index < tvShows.length; index++) {
-                await fetchAndStoreSeasonsForShow(tvShows[index]);
-            }
-        });
+        const tvShows = await getTVShowsPaginated(pageSize, pageNumber);
+        await Promise.all(tvShows.map(s => fetchAndStoreSeasonsForShow(s)));
     }
 }
 
 
 export default async function handler(req, res) {
-    await syncSeasonData();
+    syncSeasonData();
 
     res.status(200).json({ message: "Done updating data" });
 }
