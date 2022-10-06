@@ -1,9 +1,7 @@
+import throttledQueue from 'throttled-queue';
+const throttle = throttledQueue(1, 250);
 import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient;
-
-function delay(timeInMs) {
-    return new Promise(resolve => setTimeout(resolve, timeInMs))
-}
 
 async function getTVShowsPaginated(pageSize, pageNumber) {
     const cursorID = (pageSize * pageNumber) + 1;
@@ -23,14 +21,16 @@ async function getTVShowsPaginated(pageSize, pageNumber) {
 }
 
 async function fetchAndStoreSeasonsForShow(show) {
-    fetch(`https://api.tvmaze.com/shows/${show.externalID}/seasons`)
-        .then(res => {
-            if (res.ok) {
-                return res.json();
-            }
+    throttle(() => {
+        return fetch(`https://api.tvmaze.com/shows/${show.externalID}/seasons`)
+            .then(res => {
+                if (res.ok) {
+                    return res.json();
+                }
 
-            return new Error(`Couldn't fetch seasons for ID: ${show.id}, ExternalID: ${show.externalID}, Name: ${show.name}`);
-        })
+                return new Error(`Couldn't fetch seasons for ID: ${show.id}, ExternalID: ${show.externalID}, Name: ${show.name}`);
+            });
+    })
         .then((seasons) => {
             console.log(`${show.id} ${show.title} Seasons fetched`);
             seasons = convertSeasonsToPrismaData(show, seasons);
@@ -75,7 +75,6 @@ async function syncSeasonData() {
         getTVShowsPaginated(pageSize, pageNumber).then(async tvShows => {
             for (let index = 0; index < tvShows.length; index++) {
                 await fetchAndStoreSeasonsForShow(tvShows[index]);
-                await delay(100);
             }
         });
     }
