@@ -1,22 +1,32 @@
-import throttledQueue from 'throttled-queue';
-const throttle = throttledQueue(1, 50);
+import throttle from "../../libs/utils/throttle";
 import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient;
 
 async function startFetchingFromID() {
-    return (await prisma.tVShow.findMany({
+    const firstShowWithoutSeason = (await prisma.tVShow.findFirst({
         where: {
             seasons: { none: {} },
         },
         orderBy: {
             id: 'asc'
         },
-        take: 1,
-    }))[0].id;
+    }));
+
+    if (firstShowWithoutSeason == null) {
+        throw new Error("No tv shows in table.");
+    }
+
+    return firstShowWithoutSeason.id;
 }
 
-async function getTVShowsPaginated(pageSize, pageNumber, startingID = 1) {
-    const cursorID = (pageSize * pageNumber) + 1;
+async function getTVShowsPaginated(pageSize, pageNumber) {
+    let startFetchingFromID = 1;
+    try {
+        startPaginationFromID = await startFetchingFromID();
+    } catch (e) {
+        return [];
+    }
+    const cursorID = (pageSize * pageNumber) + startPaginationFromID;
     if (pageSize == 0) {
         return [];
     }
@@ -32,26 +42,47 @@ async function getTVShowsPaginated(pageSize, pageNumber, startingID = 1) {
     });
 }
 
+async function getTotalPages(pageSize) {
+    let startingID = 1;
+    try {
+        startingID = await startFetchingFromID();
+    }
+    catch (e) {
+        return 0;
+    }
+    const totalTVShowCount = await prisma.tVShow.count({
+        where: {
+            id: {
+                gt: startingID,
+            }
+        }
+    });
+
+    return Math.ceil(totalTVShowCount / pageSize);
+}
+
 async function fetchAndStoreSeasonsForShow(show) {
     return throttle(() => {
         return fetch(`https://api.tvmaze.com/shows/${show.externalID}/seasons`)
             .then(res => {
                 if (res.ok) {
                     return res.json();
+                } else if (res.status == 429) {
+                    throttle(() => fetchAndStoreSeasonsForShow(show));
                 }
 
-                return new Error(`Couldn't fetch seasons for ID: ${show.id}, ExternalID: ${show.externalID}, Name: ${show.name}`);
+                throw new Error(`Couldn't fetch seasons for ID: ${show.id}, ExternalID: ${show.externalID}, Name: ${show.title}, httpStatus: ${res.status}`);
             });
     })
         .then((seasons) => {
-            console.log(`${show.id} ${show.title} Seasons fetched`);
+            console.info(`${show.id} ${show.title} Seasons fetched`);
             seasons = convertSeasonsToPrismaData(show, seasons);
             prisma.season.createMany({
                 data: seasons,
-            }).then(() => console.log(`${show.id} ${show.title} Seasons stored`));
+            }).then(() => console.info(`${show.id} ${show.title} Seasons stored`));
         })
         .catch((e) => {
-            console.log(e.message);
+            console.error(e.message);
         });
 }
 
@@ -70,26 +101,33 @@ function convertSeasonsToPrismaData(show, seasons) {
 }
 
 async function getNumberOfStoredTVShows() {
-    return (await prisma.tVShow.aggregate({
-        _count: {
-            id: true,
-        }
-    }))._count.id;
+    return (await prisma.tVShow.count());
 }
 
 async function syncSeasonData() {
     const pageSize = 250;
-    const totalTVShows = await getNumberOfStoredTVShows();
-    const lastPage = Math.ceil(totalTVShows / 250);
-    for (let pageNumber = 0; pageNumber < lastPage; pageNumber++) {
+    const numberOfPages = await getTotalPages(pageSize);
+    for (let pageNumber = 0; pageNumber < numberOfPages; pageNumber++) {
         const tvShows = await getTVShowsPaginated(pageSize, pageNumber);
         await Promise.all(tvShows.map(s => fetchAndStoreSeasonsForShow(s)));
     }
 }
 
+async function fetchForMissedShows() {
+    let showWithoutSeasons = await prisma.tVShow.findMany({
+        where: {
+            seasons: { none: {} },
+        },
+    });
+    for (let index = 0; index < showWithoutSeasons.length; index++) {
+        fetchAndStoreSeasonsForShow(showWithoutSeasons[index]);
+    }
+
+}
 
 export default async function handler(req, res) {
-    syncSeasonData();
+    await syncSeasonData();
+    fetchForMissedShows();
 
     res.status(200).json({ message: "Done updating data" });
 }
