@@ -25,7 +25,9 @@ model TVShow {
 
 model Season {
   id          Int       @id @default(autoincrement())
+  externalID  Int
   name        String    @db.VarChar(255)
+  number      Int
   summary     String?   @db.Text
   premierDate DateTime?
   endDate     DateTime?
@@ -33,4 +35,22 @@ model Season {
   imageLowRes String?   @db.VarChar(255)
   showID      Int
   show        TVShow    @relation(fields: [showID], references: [id])
+  episodes    Episode[]
+}
+
+model Episode {
+  id           Int       @id @default(autoincrement())
+  name         String?   @db.VarChar(255)
+  airDate      DateTime?
+  image        String?   @db.VarChar(255)
+  imageLowRes  String?   @db.VarChar(255)
+  number       Int
+  seasonNumber Int
+  rating       Json?
+  runtime      Int?
+  summary      String?   @db.Text
+  type         String?   @db.Text
+  externalID   Int
+  seasonID     Int
+  season       Season    @relation(fields: [seasonID], references: [id])
 }

@@ -1,7 +1,12 @@
 import { PrismaClient } from "@prisma/client";
+import HttpError from "../../libs/errors/httpErrors/base";
+import NotFoundError from "../../libs/errors/httpErrors/notFound";
+import RateLimitError from "../../libs/errors/httpErrors/rateLimitError";
 const prisma = new PrismaClient;
-import throttledQueue from 'throttled-queue';
-const throttle = throttledQueue(1, 50);
+// import throttle from "../../libs/utils/throttle";
+import tq from "throttled-queue";
+const throttleFast = tq(1, 50);
+const throttleSlow = tq(1, 250);
 
 async function fetchAndStoreFirstPage() {
     const pageToFetch = await getPageToFetch();
@@ -26,18 +31,15 @@ async function syncShowData() {
         for (let index = 0; index < pagesToFetchInBurst; index++) {
             allPromises.push(fetchPage(page + index));
         }
-        try {
-            let results = await Promise.allSettled(allPromises);
-            for (let index = 0; index < results.length; index++) {
-                if (results[index].status == 'rejected') {
-                    break outerLoop;
-                }
-                saveToDB(results[index].value);
+        
+        let results = await Promise.allSettled(allPromises);
+        for (let index = 0; index < results.length; index++) {
+            if (results[index].status == 'rejected') {
+                break outerLoop;
             }
-
-        } catch (e) {
-            console.error("Error occurred")
+            saveToDB(results[index].value);
         }
+
     }
 }
 
@@ -65,22 +67,27 @@ async function getPageToFetch() {
 }
 
 async function fetchPage(page) {
-    return throttle(() => {
-        // const abortController = new AbortController();
-        // abortControllers[page] = abortController;
-        return fetch(`https://api.tvmaze.com/shows?page=${page}`,
-            // { signal: abortController.signal }
-        )
+    return throttleFast(() => {
+        return fetch(`https://api.tvmaze.com/shows?page=${page}`,)
             .then((res) => {
                 if (res.ok) {
                     console.info(`Page ${page} fetched.`);
                     return res.json();
                 }
                 else if (res.status == 404) {
-                    throw new Error(`Reached end of show index. Last show ${page}`, { cause: 404, });
+                    return Promise.reject(new NotFoundError(`Reached end of show index. Last show ${page}`));
+                } else if (res.status == 429) {
+                    return Promise.reject(new RateLimitError("Api rate limit triggered"));
                 }
-                throw new Error(`Network error ${res.status} for page ${page}`, { cause: 400 });
+                return Promise.reject(new HttpError(`Network error ${res.status} for page ${page}`, res.status));
             });
+    }).catch((e) => {
+        if (e instanceof HttpError) {
+            if (e.code == 404) {
+                return Promise.reject(new HttpError("Unhandleable error", e.code));
+            }
+        }
+        return fetchPage(page);
     });
 }
 
