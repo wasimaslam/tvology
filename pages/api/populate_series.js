@@ -31,7 +31,7 @@ async function syncShowData() {
         for (let index = 0; index < pagesToFetchInBurst; index++) {
             allPromises.push(fetchPage(page + index));
         }
-        
+
         let results = await Promise.allSettled(allPromises);
         for (let index = 0; index < results.length; index++) {
             if (results[index].status == 'rejected') {
@@ -113,8 +113,8 @@ async function saveToDB(tvShows) {
 }
 
 export default async function handler(req, res) {
-    // syncShowData(300);
-    syncShowData();
+
+    await syncShowData();
 
     res.status(200).json({ message: "Done updating data" });
 }

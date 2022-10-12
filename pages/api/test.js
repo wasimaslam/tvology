@@ -5,11 +5,17 @@ const prisma = new PrismaClient;
 
 
 export default async function handler(req, res) {
-    let showWithoutSeasons = await prisma.tVShow.findMany({
+    let showsWithoutSeasons = prisma.tVShow.findMany({
         where: {
             seasons: { none: {} },
         },
     });
 
-    res.status(200).json(showWithoutSeasons);
+    let showsWithoutEpisodes = prisma.season.findMany({
+        where: {
+            episodes: { none: {} }
+        },
+    });
+
+    res.status(200).json({ showsWithoutSeasons: await showsWithoutSeasons, showsWithoutEpisodes: await showsWithoutEpisodes });
 }

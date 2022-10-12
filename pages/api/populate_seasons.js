@@ -8,7 +8,7 @@ async function getTVShowsPaginated(pageSize, pageNumber) {
     return await prisma.tVShow.findMany({
         take: pageSize,
         where: {
-            seasons: {none: {}},
+            seasons: { none: {} },
         },
         orderBy: {
             id: "asc",
@@ -20,7 +20,7 @@ async function getTVShowsPaginated(pageSize, pageNumber) {
 async function getTotalPages(pageSize) {
     const totalTVShowCount = await prisma.tVShow.count({
         where: {
-            seasons: {none: {}}
+            seasons: { none: {} }
         }
     })
 
@@ -29,9 +29,9 @@ async function getTotalPages(pageSize) {
 
 async function fetchAndStoreSeasonsForShow(show) {
     let seasons = [];
-    try{
+    try {
         seasons = await fetchSeasons(show);
-    }catch(e){
+    } catch (e) {
         console.error(e.message);
         return Promise.reject(e);
     }
@@ -53,8 +53,7 @@ async function fetchSeasons(show) {
     });
 }
 
-async function storeSeasons(show, seasons)
-{
+async function storeSeasons(show, seasons) {
     seasons = convertSeasonsToPrismaData(show, seasons);
     await prisma.season.createMany({
         data: seasons,
