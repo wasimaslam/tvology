@@ -1,7 +1,6 @@
-import { PrismaClient } from "@prisma/client";
 import tq from "throttled-queue";
 const evenQueue = new tq(1, 25);
-const prisma = new PrismaClient;
+import prisma from "../../../client/prismaClient";
 
 
 async function syncEpisodesData() {
@@ -48,7 +47,7 @@ async function storeEpisodes(episodes, show) {
     });
 }
 
-async function convertToPrismaData(episodes, show){
+async function convertToPrismaData(episodes, show) {
     let seasons = await prisma.season.findMany({
         where: {
             showID: show.id

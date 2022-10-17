@@ -1,5 +1,4 @@
-import { PrismaClient } from "@prisma/client";
-const prisma = new PrismaClient;
+import prisma from "../../../client/prismaClient";
 
 const lastID = (await prisma.tVShow.findMany({
     orderBy: {

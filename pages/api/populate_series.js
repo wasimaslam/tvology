@@ -1,12 +1,9 @@
-import { PrismaClient } from "@prisma/client";
 import HttpError from "../../libs/errors/httpErrors/base";
 import NotFoundError from "../../libs/errors/httpErrors/notFound";
 import RateLimitError from "../../libs/errors/httpErrors/rateLimitError";
-const prisma = new PrismaClient;
-// import throttle from "../../libs/utils/throttle";
+import prisma from "../../../client/prismaClient";
 import tq from "throttled-queue";
 const throttleFast = tq(1, 50);
-const throttleSlow = tq(1, 250);
 
 async function fetchAndStoreFirstPage() {
     const pageToFetch = await getPageToFetch();

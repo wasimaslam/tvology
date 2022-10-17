@@ -54,3 +54,10 @@ model Episode {
   seasonID     Int
   season       Season    @relation(fields: [seasonID], references: [id])
 }
+
+model User {
+  id       Int    @id @default(autoincrement())
+  name     String @db.VarChar(255)
+  email    String @db.VarChar(255)
+  password String @db.VarChar(255)
+}

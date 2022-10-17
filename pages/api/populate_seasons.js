@@ -1,8 +1,7 @@
 import throttle from "../../libs/utils/throttle";
-import { PrismaClient } from "@prisma/client";
 import tq from "throttled-queue";
 const evenQueue = new tq(1, 25);
-const prisma = new PrismaClient;
+import prisma from "../../../client/prismaClient";
 
 async function getTVShowsPaginated(pageSize, pageNumber) {
     return await prisma.tVShow.findMany({

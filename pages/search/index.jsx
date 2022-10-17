@@ -2,6 +2,7 @@ import Head from 'next/head'
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from 'next/router';
+import Auth from "../../components/Auth";
 
 
 export default function Search({ tvShowsQuery, searchStringQuery }) {
@@ -17,7 +18,7 @@ export default function Search({ tvShowsQuery, searchStringQuery }) {
             let shows = await fetchTVShows(searchString);
             setTVShows(shows);
             router.query.search = searchString;
-            router.push(router, undefined, {shallow: true});
+            router.push(router, undefined, { shallow: true });
         }
     }
 
@@ -28,7 +29,9 @@ export default function Search({ tvShowsQuery, searchStringQuery }) {
                 <meta name="description" content="Search tv shows" />
                 <link rel="icon" href="/favicon.ico" />
             </Head>
-
+            <Auth>
+                <h1>Waseem Aslam</h1>
+            </Auth>
             <main className='flex flex-col items-center justify-center h-screen'>
                 <div className='flex flex-col items-center justify-center my-2'>
                     <input className='border-2 border-black rounded block mb-2 w-60' onChange={(event) => setSearchString(event.target.value)} onKeyPress={(e) => { e.key == "Enter" ? handleSearch() : "" }} value={searchString} />

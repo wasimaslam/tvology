@@ -1,8 +1,7 @@
-import { PrismaClient } from "@prisma/client";
+import prisma from "../../client/prismaClient";
 import tq from "throttled-queue";
 const https = require('https');
 const throttle = new tq(1, 25, true);
-const prisma = new PrismaClient;
 const httpsAgent = new https.Agent({ keepAlive: true });
 
 let numberOfFetchErrors = 0;
